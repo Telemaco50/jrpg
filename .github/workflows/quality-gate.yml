@@ -36,7 +36,11 @@ jobs:
         run: cmake -S . -B build
 
       - name: Compilar
-        run: cmake --build build --config Debug --target jrpg
+        run: cmake --build build --config Debug --target jrpg pruebas
+
+      # Si alguna prueba falla, el gate sale en rojo
+      - name: Ejecutar pruebas
+        run: ctest --test-dir build -C Debug --output-on-failure
 
   # 2. Análisis estático con cppcheck
   analisis:

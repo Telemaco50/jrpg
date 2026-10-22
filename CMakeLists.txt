@@ -39,28 +39,56 @@ FetchContent_Declare(SDL3_image
   GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(SDL3_image)
 
-# --- El juego ---
-# Cada .cpp nuevo del proyecto se añade a esta lista (los .h no hace falta)
-add_executable(jrpg
-  src/main.cpp
+# --- Lógica del juego (SIN SDL) ---
+# Todo lo que no dibuja va en esta librería. La usan el juego Y las pruebas.
+# Cada .cpp nuevo de lógica se añade AQUÍ (los .h no hace falta).
+add_library(jrpg_logica STATIC
   src/logger.cpp
-  src/personaje.cpp
+  src/tipo.cpp
   src/habilidad.cpp
+  src/personaje.cpp
   src/combate.cpp
   src/seleccionPersonaje.cpp
-  src/interfaz.cpp
   src/controladorPJ.cpp
   src/controladorIA.cpp
-  src/tipo.cpp
 )
-target_link_libraries(jrpg PRIVATE SDL3_image::SDL3_image SDL3::SDL3)
+target_include_directories(jrpg_logica PUBLIC src)
+
+# --- El juego: main + la parte visual (lo que usa SDL) ---
+add_executable(jrpg
+  src/main.cpp
+  src/interfaz.cpp
+)
+target_link_libraries(jrpg PRIVATE jrpg_logica SDL3_image::SDL3_image SDL3::SDL3)
+
+# --- Pruebas: ejecutable aparte con doctest (no abre ventana ni usa SDL) ---
+# doctest es una librería de tests de un solo .h; solo descargamos el código
+# (SOURCE_SUBDIR inexistente = no ejecutar su CMakeLists, solo usar la cabecera)
+FetchContent_Declare(doctest
+  GIT_REPOSITORY https://github.com/doctest/doctest.git
+  GIT_TAG        v2.4.12
+  GIT_SHALLOW    TRUE
+  SOURCE_SUBDIR  no-cmake)
+FetchContent_MakeAvailable(doctest)
+
+enable_testing()
+# Cada archivo de pruebas nuevo (tests/test_*.cpp) se añade a esta lista
+add_executable(pruebas
+  tests/main_pruebas.cpp
+  tests/test_tipo.cpp
+)
+target_include_directories(pruebas PRIVATE ${doctest_SOURCE_DIR})
+target_link_libraries(pruebas PRIVATE jrpg_logica)
+add_test(NAME pruebas COMMAND pruebas)
 
 # Avisos del compilador al nivel alto: te ayudan a encontrar bugs pronto
-if(MSVC)
-  target_compile_options(jrpg PRIVATE /W4 /utf-8)
-else()
-  target_compile_options(jrpg PRIVATE -Wall -Wextra)
-endif()
+foreach(objetivo jrpg_logica jrpg pruebas)
+  if(MSVC)
+    target_compile_options(${objetivo} PRIVATE /W4 /utf-8)
+  else()
+    target_compile_options(${objetivo} PRIVATE -Wall -Wextra)
+  endif()
+endforeach()
 
 # Copiar la carpeta assets/ junto al .exe después de cada compilación
 add_custom_command(TARGET jrpg POST_BUILD
