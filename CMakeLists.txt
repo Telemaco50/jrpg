@@ -43,6 +43,15 @@ FetchContent_MakeAvailable(SDL3_image)
 # Cada .cpp nuevo del proyecto se añade a esta lista (los .h no hace falta)
 add_executable(jrpg
   src/main.cpp
+  src/logger.cpp
+  src/personaje.cpp
+  src/habilidad.cpp
+  src/combate.cpp
+  src/seleccionPersonaje.cpp
+  src/interfaz.cpp
+  src/controladorPJ.cpp
+  src/controladorIA.cpp
+  src/tipo.cpp
 )
 target_link_libraries(jrpg PRIVATE SDL3_image::SDL3_image SDL3::SDL3)
 

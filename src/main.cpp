@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
-
+#include "logger.h"
 // Resolución "interna" tipo Game Boy Advance, escalada x3 en la ventana
 constexpr int kAnchoLogico = 240;
 constexpr int kAltoLogico  = 160;
