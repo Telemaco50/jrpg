@@ -77,6 +77,7 @@ add_executable(pruebas
   tests/main_pruebas.cpp
   tests/test_tipo.cpp
   tests/test_habilidad.cpp
+  tests/test_personaje.cpp
 )
 target_include_directories(pruebas PRIVATE ${doctest_SOURCE_DIR})
 target_link_libraries(pruebas PRIVATE jrpg_logica)
