@@ -39,6 +39,21 @@ FetchContent_Declare(SDL3_image
   GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(SDL3_image)
 
+# --- SDL3_ttf: escribir texto con fuentes .ttf (nombres, menús, mensajes) ---
+# VENDORED: compila FreeType (el lector de fuentes) junto al proyecto, sin instalar nada.
+# Solo descargamos el submódulo de FreeType; HarfBuzz (idiomas complejos) y PlutoSVG
+# (emojis en color) no nos hacen falta.
+set(SDLTTF_VENDORED  ON  CACHE BOOL "" FORCE)
+set(SDLTTF_HARFBUZZ  OFF CACHE BOOL "" FORCE)
+set(SDLTTF_PLUTOSVG  OFF CACHE BOOL "" FORCE)
+set(SDLTTF_SAMPLES   OFF CACHE BOOL "" FORCE)
+set(SDLTTF_INSTALL   OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(SDL3_ttf
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
+  GIT_TAG        release-3.2.2
+  GIT_SUBMODULES external/freetype)
+FetchContent_MakeAvailable(SDL3_ttf)
+
 # --- Lógica del juego (SIN SDL) ---
 # Todo lo que no dibuja va en esta librería. La usan el juego Y las pruebas.
 # Cada .cpp nuevo de lógica se añade AQUÍ (los .h no hace falta).
@@ -60,7 +75,7 @@ add_executable(jrpg
   src/main.cpp
   src/interfaz.cpp
 )
-target_link_libraries(jrpg PRIVATE jrpg_logica SDL3_image::SDL3_image SDL3::SDL3)
+target_link_libraries(jrpg PRIVATE jrpg_logica SDL3_ttf::SDL3_ttf SDL3_image::SDL3_image SDL3::SDL3)
 
 # --- Pruebas: ejecutable aparte con doctest (no abre ventana ni usa SDL) ---
 # doctest es una librería de tests de un solo .h; solo descargamos el código

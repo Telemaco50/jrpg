@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include "logger.h"
 // Resolución "interna" tipo Game Boy Advance, escalada x3 en la ventana
 constexpr int kAnchoLogico = 240;
@@ -14,6 +15,10 @@ int main(int /*argc*/, char* /*argv*/[])   // parámetros sin nombre = "no los u
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Error en SDL_Init: %s", SDL_GetError());
+        return 1;
+    }
+    if (!TTF_Init()) {                     // arrancar SDL3_ttf (para escribir texto)
+        SDL_Log("Error en TTF_Init: %s", SDL_GetError());
         return 1;
     }
 
@@ -36,6 +41,22 @@ int main(int /*argc*/, char* /*argv*/[])   // parámetros sin nombre = "no los u
     SDL_Texture* sprite = IMG_LoadTexture(renderer, "assets/test.png");
     if (!sprite) {
         SDL_Log("No se pudo cargar assets/test.png: %s", SDL_GetError());
+    }
+
+    // --- Prueba de texto con SDL3_ttf ---
+    // 1. Cargar la fuente a 8 píxeles (Press Start 2P está diseñada en una cuadrícula de 8x8)
+    TTF_Font* fuente = TTF_OpenFont("assets/fuentes/PressStart2P-Regular.ttf", 8);
+    if (!fuente) {
+        SDL_Log("No se pudo cargar la fuente: %s", SDL_GetError());
+    }
+    SDL_Texture* texto = nullptr;
+    if (fuente) {
+        // 2. Escribir el texto en una imagen ("_Solid" = sin suavizar, píxeles nítidos)
+        SDL_Color blanco = {255, 255, 255, 255};
+        SDL_Surface* superficie = TTF_RenderText_Solid(fuente, "Sermón, Niños, ¡EHHH!", 0, blanco);
+        // 3. Convertir esa imagen en textura (la "pegatina" que se dibuja)
+        texto = SDL_CreateTextureFromSurface(renderer, superficie);
+        SDL_DestroySurface(superficie);   // la imagen intermedia ya no hace falta
     }
 
     float x = 112.0f, y = 72.0f;          // posición del sprite
@@ -68,11 +89,21 @@ int main(int /*argc*/, char* /*argv*/[])   // parámetros sin nombre = "no los u
             SDL_FRect destino = { x, y, 16.0f, 16.0f };
             SDL_RenderTexture(renderer, sprite, nullptr, &destino);
         }
+        if (texto) {
+            // 4. Pegar el texto en (8, 8) con su tamaño original
+            float ancho = 0, alto = 0;
+            SDL_GetTextureSize(texto, &ancho, &alto);
+            SDL_FRect destinoTexto = { 8.0f, 8.0f, ancho, alto };
+            SDL_RenderTexture(renderer, texto, nullptr, &destinoTexto);
+        }
         SDL_RenderPresent(renderer);
 
         SDL_Delay(1);   // ceder la CPU; el movimiento no depende de esto gracias a dt
     }
 
+    SDL_DestroyTexture(texto);
+    TTF_CloseFont(fuente);
+    TTF_Quit();
     SDL_DestroyTexture(sprite);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(ventana);
