@@ -92,7 +92,7 @@ void Personaje::pasarTurno(){
     }
 }
 
-// --- Canalización ("Turno de magic infinito" de Alvaro) ---
+// --- Canalización 
 bool Personaje::estaCanalizando()const{
     return m_canalizacion>0;
 }
@@ -102,7 +102,7 @@ void Personaje::empezarCanalizacion(int turnosAturdimiento){
 }
 
 int Personaje::completarCanalizacion(){
-    // Primero copiar, luego vaciar (como en ControladorPJ)
+
     int turnos=m_canalizacion;
     m_canalizacion=0;
     return turnos;

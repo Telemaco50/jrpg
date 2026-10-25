@@ -83,6 +83,7 @@ add_executable(pruebas
   tests/test_controladorPJ.cpp
   tests/test_combate.cpp
   tests/test_catalogo.cpp
+  tests/test_seleccionPersonaje.cpp
 )
 target_include_directories(pruebas PRIVATE ${doctest_SOURCE_DIR})
 target_link_libraries(pruebas PRIVATE jrpg_logica)
