@@ -206,3 +206,42 @@ TEST_CASE("Correa: los personajes de otros tipos no usan la correa")
     CHECK(p.turnosConCorrea() == 0);
     CHECK(p.turnosLibre() == 0);
 }
+
+// ============================================================================
+// Canalización ("Turno de magic infinito" de Alvaro, regla en docs/DISENO.md)
+// ============================================================================
+
+TEST_CASE("Canalización: al empezar no está canalizando")
+{
+    Personaje p = crearPersonajeP();
+    CHECK_FALSE(p.estaCanalizando());
+}
+
+TEST_CASE("Canalización: empezar y completar devuelve los turnos de aturdimiento")
+{
+    Personaje p = crearPersonajeP();
+    p.empezarCanalizacion(99);
+    CHECK(p.estaCanalizando());
+
+    CHECK(p.completarCanalizacion() == 99);
+    CHECK_FALSE(p.estaCanalizando());        // al completarla, deja de canalizar
+}
+
+TEST_CASE("Canalización: aturdirle la rompe y además queda aturdido")
+{
+    Personaje p = crearPersonajeP();
+    p.empezarCanalizacion(99);
+    p.aturdir(1);
+
+    CHECK_FALSE(p.estaCanalizando());
+    CHECK(p.estaAturdido());
+}
+
+TEST_CASE("Canalización: el daño NO la rompe")
+{
+    Personaje p = crearPersonajeP();
+    p.empezarCanalizacion(99);
+    p.recibirDanio(30);
+
+    CHECK(p.estaCanalizando());
+}

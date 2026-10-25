@@ -51,6 +51,7 @@ add_library(jrpg_logica STATIC
   src/seleccionPersonaje.cpp
   src/controladorPJ.cpp
   src/controladorIA.cpp
+  src/catalogo.cpp
 )
 target_include_directories(jrpg_logica PUBLIC src)
 
@@ -81,6 +82,7 @@ add_executable(pruebas
   tests/test_controladorIA.cpp
   tests/test_controladorPJ.cpp
   tests/test_combate.cpp
+  tests/test_catalogo.cpp
 )
 target_include_directories(pruebas PRIVATE ${doctest_SOURCE_DIR})
 target_link_libraries(pruebas PRIVATE jrpg_logica)

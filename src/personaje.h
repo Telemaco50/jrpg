@@ -61,6 +61,12 @@ public:
     void aturdir(int turnos);         // suma turnos de aturdimiento
     void pasarTurno();                // al acabar su turno: resta aturdimiento y avanza los contadores de correa
 
+
+    bool estaCanalizando() const;                       // ¿está canalizando?
+    void empezarCanalizacion(int turnosAturdimiento);   // empieza; guarda los turnos que lanzará al completarla
+    int completarCanalizacion();                        // termina la canalización y devuelve esos turnos
+    // Nota: aturdir() a un personaje que está canalizando le ROMPE la canalización
+
     // --- Correa (solo la usa el tipo Correa: Griso) ---
     bool tieneCorrea() const {
         return m_conCorrea;
@@ -88,6 +94,7 @@ private:
     // Estado del combate (con valor inicial para que nunca empiecen con basura)
     int m_psActuales = 0;          // el constructor lo pone a m_psMax (vida llena)
     int m_turnosAturdido = 0;
+    int m_canalizacion = 0;        // 0 = no canaliza; > 0 = turnos de aturdimiento que lanzará al completarla
     int m_PM = 0;                  // PM: pendiente de diseñar
 
     // Estado de la correa (Griso). TODO: decidir si empieza con correa o libre

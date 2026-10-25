@@ -47,6 +47,15 @@ void Combate::actualizar(){
         return;
     }
 
+    // 2b. Si estaba canalizando y nadie le ha interrumpido, la completa:
+    //     el rival queda aturdido y este turno se gasta en ello
+    if(actor.estaCanalizando()){
+        otro.aturdir(actor.completarCanalizacion());
+        actor.pasarTurno();
+        cambiarTurno();
+        return;
+    }
+
     // 3. Preguntar al controlador qué hace. Si aún no ha decidido (jugador en el menú), esperar:
     //    en el siguiente frame se volverá a preguntar.
     std::optional<int> decision = controlador.elegirHabilidad(actor, otro);
@@ -97,6 +106,9 @@ void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habi
             break;
         case Efecto::Stun:
             objetivo.aturdir(cantidad);
+            break;
+        case Efecto::Canalizar:
+            actor.empezarCanalizacion(cantidad);
             break;
     }
 }

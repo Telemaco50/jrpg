@@ -50,6 +50,11 @@ bool Personaje::estaAturdido()const{
 void Personaje::aturdir(int turno){
     m_turnosAturdido=m_turnosAturdido+turno;
 
+    // Aturdir a alguien que está canalizando le rompe la canalización
+    if(turno>0){
+        m_canalizacion=0;
+    }
+
 }
 
 // Cambio de estado: los dos contadores vuelven a 0 (el 0 marca el turno del cambio)
@@ -85,4 +90,20 @@ void Personaje::pasarTurno(){
             }
         }
     }
+}
+
+// --- Canalización ("Turno de magic infinito" de Alvaro) ---
+bool Personaje::estaCanalizando()const{
+    return m_canalizacion>0;
+}
+
+void Personaje::empezarCanalizacion(int turnosAturdimiento){
+    m_canalizacion=turnosAturdimiento;
+}
+
+int Personaje::completarCanalizacion(){
+    // Primero copiar, luego vaciar (como en ControladorPJ)
+    int turnos=m_canalizacion;
+    m_canalizacion=0;
+    return turnos;
 }

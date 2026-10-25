@@ -8,7 +8,8 @@
 enum class Efecto{
     Cura,
     Dano,
-    Stun
+    Stun,
+    Canalizar   
 };
 
 

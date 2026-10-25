@@ -254,3 +254,74 @@ TEST_CASE("Combate: escalado de Griso con la correa (multiplicador = max(1, turn
     ronda();    // libre: turnos con correa 0 → x1 → 10
     CHECK(c.getRival().getPsActuales() == 950);
 }
+
+// ============================================================================
+// Canalización ("Turno de magic infinito" de Alvaro)
+// ============================================================================
+
+static Habilidad canalizar(int turnos)
+{
+    return Habilidad("Magic infinito", Efecto::Canalizar, Escalado::noEscala, turnos, turnos, 0);
+}
+
+TEST_CASE("Combate: si nadie interrumpe, la canalización aturde 99 turnos al rival")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("Alvaro", Tipo::Otaku, 100, {canalizar(99), golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {golpe(10)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();             // Alvaro empieza a canalizar
+    CHECK(c.getJugador().estaCanalizando());
+    CHECK(c.getTurno() == Lado::Rival);
+
+    cr.recibirEleccion(0);
+    c.actualizar();             // el rival le pega (el daño NO interrumpe)
+    CHECK(c.getJugador().estaCanalizando());
+
+    c.actualizar();             // turno de Alvaro: se completa sola (sin elegir nada) y gasta el turno
+    CHECK_FALSE(c.getJugador().estaCanalizando());
+    CHECK(c.getRival().getTurnosAturdido() == 99);
+    CHECK(c.getTurno() == Lado::Rival);
+}
+
+TEST_CASE("Combate: tras completar la canalización, el rival no vuelve a actuar")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("Alvaro", Tipo::Otaku, 100, {canalizar(99), golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {golpe(10)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();             // canaliza
+    cr.recibirEleccion(0);
+    c.actualizar();             // rival pega: Alvaro 90
+    c.actualizar();             // se completa: rival aturdido 99
+
+    for(int i = 0; i < 5; i++){
+        cr.recibirEleccion(0);  // aunque el rival "quiera" atacar...
+        c.actualizar();         // ...está aturdido y pierde el turno
+        cj.recibirEleccion(1);
+        c.actualizar();         // Alvaro golpea
+    }
+
+    CHECK(c.getJugador().getPsActuales() == 90);    // el rival no ha vuelto a pegar
+    CHECK(c.getRival().getPsActuales() == 50);      // 5 golpes de 10
+}
+
+TEST_CASE("Combate: aturdir a Alvaro mientras canaliza la rompe y le hace perder el turno")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("Alvaro", Tipo::Otaku, 100, {canalizar(99), golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {paralizar(1)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();             // Alvaro canaliza
+    cr.recibirEleccion(0);
+    c.actualizar();             // el rival le aturde → canalización rota
+    CHECK_FALSE(c.getJugador().estaCanalizando());
+    CHECK(c.getJugador().estaAturdido());
+
+    c.actualizar();             // turno de Alvaro: está aturdido, lo pierde
+    CHECK(c.getTurno() == Lado::Rival);
+    CHECK_FALSE(c.getRival().estaAturdido());       // la canalización no llegó a lanzarse
+}
