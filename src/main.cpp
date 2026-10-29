@@ -1,112 +1,98 @@
-// Comprobación del entorno: abre una ventana, carga un PNG con SDL3_image
-// y lo mueve con las flechas. Cuando empieces con tus clases, sustituye este archivo.
+// Punto de entrada del juego: une todas las piezas.
+//   1. Pantalla de selección (SeleccionPersonaje)
+//   2. Combate: el jugador con el menú (ControladorPJ) contra la IA (ControladorIA)
+//   3. Resultado
 
-#include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-#include <SDL3_image/SDL_image.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include "logger.h"
-// Resolución "interna" tipo Game Boy Advance, escalada x3 en la ventana
-constexpr int kAnchoLogico = 240;
-constexpr int kAltoLogico  = 160;
-constexpr int kEscala      = 3;
+#include <memory>
+#include <random>
+#include "interfaz.h"
+#include "catalogo.h"
+#include "seleccionPersonaje.h"
+#include "combate.h"
+#include "controladorPJ.h"
+#include "controladorIA.h"
 
-int main(int /*argc*/, char* /*argv*/[])   // parámetros sin nombre = "no los uso" (evita avisos)
+// Las fases del juego (una "máquina de estados" muy sencilla)
+enum class Pantalla {
+    Seleccion,
+    Combate
+};
+
+int main(int /*argc*/, char* /*argv*/[])
 {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("Error en SDL_Init: %s", SDL_GetError());
-        return 1;
-    }
-    if (!TTF_Init()) {                     // arrancar SDL3_ttf (para escribir texto)
-        SDL_Log("Error en TTF_Init: %s", SDL_GetError());
+    Interfaz interfaz;
+    if(!interfaz.estaAbierta()){
         return 1;
     }
 
-    SDL_Window* ventana = SDL_CreateWindow("JRPG",
-                                           kAnchoLogico * kEscala,
-                                           kAltoLogico * kEscala,
-                                           0);
-    SDL_Renderer* renderer = SDL_CreateRenderer(ventana, nullptr);
-    if (!ventana || !renderer) {
-        SDL_Log("Error creando ventana/renderer: %s", SDL_GetError());
-        return 1;
-    }
+    // Semilla distinta en cada partida (en las pruebas usamos una fija)
+    std::random_device azar;
 
-    // Dibujamos en coordenadas de 240x160 y SDL lo escala solo, sin difuminar (pixel art)
-    SDL_SetRenderLogicalPresentation(renderer, kAnchoLogico, kAltoLogico,
-                                     SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-    SDL_SetDefaultTextureScaleMode(renderer, SDL_SCALEMODE_PIXELART);
+    SeleccionPersonaje seleccion(crearPersonajes());
+    ControladorPJ controladorJugador;
+    ControladorIA controladorRival(azar());
+    std::unique_ptr<Combate> combate;      // vacío hasta que se elija personaje
+    int opcionMenu = 0;                    // habilidad marcada en el menú del combate
+    Uint64 inicioTurnoRival = 0;           // para que el rival "piense" un momento
 
-    // Cargar un PNG: si esto funciona, SDL3_image está bien enlazado
-    SDL_Texture* sprite = IMG_LoadTexture(renderer, "assets/test.png");
-    if (!sprite) {
-        SDL_Log("No se pudo cargar assets/test.png: %s", SDL_GetError());
-    }
+    Pantalla pantalla = Pantalla::Seleccion;
 
-    // --- Prueba de texto con SDL3_ttf ---
-    // 1. Cargar la fuente a 8 píxeles (Press Start 2P está diseñada en una cuadrícula de 8x8)
-    TTF_Font* fuente = TTF_OpenFont("assets/fuentes/PressStart2P-Regular.ttf", 8);
-    if (!fuente) {
-        SDL_Log("No se pudo cargar la fuente: %s", SDL_GetError());
-    }
-    SDL_Texture* texto = nullptr;
-    if (fuente) {
-        // 2. Escribir el texto en una imagen ("_Solid" = sin suavizar, píxeles nítidos)
-        SDL_Color blanco = {255, 255, 255, 255};
-        SDL_Surface* superficie = TTF_RenderText_Solid(fuente, "Sermón, Niños, ¡EHHH!", 0, blanco);
-        // 3. Convertir esa imagen en textura (la "pegatina" que se dibuja)
-        texto = SDL_CreateTextureFromSurface(renderer, superficie);
-        SDL_DestroySurface(superficie);   // la imagen intermedia ya no hace falta
-    }
+    while(interfaz.estaAbierta()){
+        // ---------- 1. EVENTOS ----------
+        std::vector<Tecla> teclas = interfaz.leerTeclas();
+        for(Tecla tecla : teclas){
+            if(tecla == Tecla::Salir){
+                return 0;
+            }
 
-    float x = 112.0f, y = 72.0f;          // posición del sprite
-    const float velocidad = 60.0f;        // píxeles por SEGUNDO (no por frame)
-    Uint64 anterior = SDL_GetTicksNS();
-
-    bool ejecutando = true;
-    while (ejecutando) {
-        // Tiempo transcurrido desde el frame anterior, en segundos (delta time)
-        Uint64 ahora = SDL_GetTicksNS();
-        float dt = (ahora - anterior) / 1'000'000'000.0f;
-        anterior = ahora;
-
-        SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) ejecutando = false;
-            if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE) ejecutando = false;
+            if(pantalla == Pantalla::Seleccion){
+                if(tecla == Tecla::Izquierda) seleccion.moverIzquierda();
+                if(tecla == Tecla::Derecha)   seleccion.moverDerecha();
+                if(tecla == Tecla::Arriba)    seleccion.moverIzquierda();
+                if(tecla == Tecla::Abajo)     seleccion.moverDerecha();
+                if(tecla == Tecla::Aceptar){
+                    seleccion.confirmar();
+                    int rival = seleccion.elegirIndiceRival(azar());
+                    combate = std::make_unique<Combate>(seleccion.getElegido(),
+                                                        seleccion.getOpciones()[rival],
+                                                        controladorJugador, controladorRival,
+                                                        azar());
+                    pantalla = Pantalla::Combate;
+                }
+            }
+            else if(!combate->haTerminado() && combate->getTurno() == Lado::Jugador){
+                int cantidad = static_cast<int>(combate->getJugador().getHabilidades().size());
+                if(tecla == Tecla::Arriba) opcionMenu = (opcionMenu - 1 + cantidad) % cantidad;
+                if(tecla == Tecla::Abajo)  opcionMenu = (opcionMenu + 1) % cantidad;
+                if(tecla == Tecla::Aceptar){
+                    controladorJugador.recibirEleccion(opcionMenu);
+                }
+            }
         }
 
-        // Estado actual del teclado (para movimiento continuo mientras se mantiene pulsada)
-        const bool* teclas = SDL_GetKeyboardState(nullptr);
-        if (teclas[SDL_SCANCODE_LEFT])  x -= velocidad * dt;
-        if (teclas[SDL_SCANCODE_RIGHT]) x += velocidad * dt;
-        if (teclas[SDL_SCANCODE_UP])    y -= velocidad * dt;
-        if (teclas[SDL_SCANCODE_DOWN])  y += velocidad * dt;
-
-        SDL_SetRenderDrawColor(renderer, 40, 120, 60, 255);   // verde "hierba"
-        SDL_RenderClear(renderer);
-        if (sprite) {
-            SDL_FRect destino = { x, y, 16.0f, 16.0f };
-            SDL_RenderTexture(renderer, sprite, nullptr, &destino);
+        // ---------- 2. LÓGICA ----------
+        if(pantalla == Pantalla::Combate && !combate->haTerminado()){
+            if(combate->getTurno() == Lado::Jugador){
+                combate->actualizar();
+                inicioTurnoRival = SDL_GetTicks();
+            }
+            else if(SDL_GetTicks() - inicioTurnoRival > 800){   // el rival "piensa" 0,8 s
+                combate->actualizar();
+            }
         }
-        if (texto) {
-            // 4. Pegar el texto en (8, 8) con su tamaño original
-            float ancho = 0, alto = 0;
-            SDL_GetTextureSize(texto, &ancho, &alto);
-            SDL_FRect destinoTexto = { 8.0f, 8.0f, ancho, alto };
-            SDL_RenderTexture(renderer, texto, nullptr, &destinoTexto);
-        }
-        SDL_RenderPresent(renderer);
 
-        SDL_Delay(1);   // ceder la CPU; el movimiento no depende de esto gracias a dt
+        // ---------- 3. DIBUJAR ----------
+        interfaz.empezarFrame();
+        if(pantalla == Pantalla::Seleccion){
+            interfaz.dibujarSeleccion(seleccion);
+        }else{
+            interfaz.dibujarCombate(*combate, opcionMenu);
+        }
+        interfaz.terminarFrame();
+
+        SDL_Delay(16);   // ~60 frames por segundo
     }
 
-    SDL_DestroyTexture(texto);
-    TTF_CloseFont(fuente);
-    TTF_Quit();
-    SDL_DestroyTexture(sprite);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(ventana);
-    SDL_Quit();
     return 0;
 }
