@@ -12,3 +12,7 @@ out/
 *.pdb
 *.ilk
 *.md
+!README.md
+
+# Archivos fuente de Clip Studio (solo se suben los PNG)
+*.clip

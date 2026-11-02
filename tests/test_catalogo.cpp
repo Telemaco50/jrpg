@@ -1,8 +1,4 @@
-// Pruebas del catálogo (catalogo.h / catalogo.cpp)
-//
-// Comprueban que los datos de los 4 personajes son coherentes con docs/DISENO.md:
-// como un test de calidad de datos sobre la "tabla" de personajes y habilidades.
-
+// Pruebas del catálogo de personajes
 #include <doctest/doctest.h>
 #include "catalogo.h"
 
@@ -38,14 +34,14 @@ TEST_CASE("Catálogo: cada personaje tiene su tipo")
 
     CHECK(alvaro->getTipo() == Tipo::Otaku);
     CHECK(josemi->getTipo() == Tipo::Criptobro);
-    CHECK(josito->getTipo() == Tipo::Narcolepsia);
+    CHECK(josito->getTipo() == Tipo::Dormilon);
     CHECK(griso->getTipo()  == Tipo::Correa);
 }
 
 TEST_CASE("Catálogo: todos tienen 3 habilidades, PS positivos y empiezan con la vida llena")
 {
     for(const Personaje& p : crearPersonajes()){
-        CAPTURE(p.getNombre());     // si algo falla, doctest dice de qué personaje
+        CAPTURE(p.getNombre());
         CHECK(p.getHabilidades().size() == 3);
         CHECK(p.getPsMax() > 0);
         CHECK(p.getPsActuales() == p.getPsMax());
@@ -65,7 +61,6 @@ TEST_CASE("Catálogo: en todas las habilidades el mínimo no supera al máximo")
 
 TEST_CASE("Catálogo: cada personaje tiene una habilidad de cada efecto que le toca")
 {
-    // Todos tienen una de curar y una de dañar; la tercera aturde (o canaliza, en Alvaro)
     for(const Personaje& p : crearPersonajes()){
         CAPTURE(p.getNombre());
         int curas = 0, danios = 0, controles = 0;

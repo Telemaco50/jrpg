@@ -1,9 +1,7 @@
 #include "interfaz.h"
 #include <SDL3_image/SDL_image.h>
+#include <algorithm>
 
-// ============================================================================
-// 1. FONTANERÍA: crear, destruir, teclado y primitivas de dibujo
-// ============================================================================
 
 Interfaz::Interfaz()
 {
@@ -16,7 +14,7 @@ Interfaz::Interfaz()
         return;
     }
 
-    // Ventana 4 veces más grande que la pantalla lógica (240x160 → 960x640)
+    // Ventana x4 (960x640)
     m_ventana = SDL_CreateWindow("JRPG", kAncho * 4, kAlto * 4, 0);
     m_renderer = SDL_CreateRenderer(m_ventana, nullptr);
     if(!m_ventana || !m_renderer){
@@ -24,12 +22,12 @@ Interfaz::Interfaz()
         return;
     }
 
-    // Dibujamos en coordenadas de 240x160 y SDL amplía sin difuminar (pixel art)
+    // Escalado sin difuminar (pixel art)
     SDL_SetRenderLogicalPresentation(m_renderer, kAncho, kAlto,
                                      SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     SDL_SetDefaultTextureScaleMode(m_renderer, SDL_SCALEMODE_PIXELART);
 
-    // Fuente pixel art a 8 píxeles (Press Start 2P está diseñada en una cuadrícula de 8x8)
+    // Press Start 2P a 8 px
     m_fuente = TTF_OpenFont("assets/fuentes/PressStart2P-Regular.ttf", 8);
     if(!m_fuente){
         SDL_Log("No se pudo cargar la fuente: %s", SDL_GetError());
@@ -41,7 +39,7 @@ Interfaz::Interfaz()
 
 Interfaz::~Interfaz()
 {
-    // Liberar en orden inverso a la creación
+    // Orden inverso a la creación
     for(auto& [ruta, textura] : m_texturas){
         SDL_DestroyTexture(textura);
     }
@@ -61,7 +59,7 @@ std::vector<Tecla> Interfaz::leerTeclas()
         if(e.type == SDL_EVENT_QUIT){
             m_abierta = false;
         }
-        // e.key.repeat: ignorar la repetición automática al mantener la tecla pulsada
+        // Se ignora la repetición automática
         if(e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat){
             switch(e.key.key){
                 case SDLK_LEFT:   teclas.push_back(Tecla::Izquierda); break;
@@ -80,7 +78,7 @@ std::vector<Tecla> Interfaz::leerTeclas()
 
 void Interfaz::empezarFrame()
 {
-    SDL_SetRenderDrawColor(m_renderer, 20, 20, 40, 255);   // fondo azul oscuro
+    SDL_SetRenderDrawColor(m_renderer, 20, 20, 40, 255);
     SDL_RenderClear(m_renderer);
 }
 
@@ -94,7 +92,6 @@ void Interfaz::dibujarTexto(const std::string& texto, float x, float y, SDL_Colo
     if(texto.empty() || !m_fuente){
         return;
     }
-    // Receta del texto: escribirlo en una imagen → convertirla en textura → pegarla
     SDL_Surface* superficie = TTF_RenderText_Solid(m_fuente, texto.c_str(), 0, color);
     if(!superficie){
         return;
@@ -110,7 +107,28 @@ void Interfaz::dibujarTexto(const std::string& texto, float x, float y, SDL_Colo
     SDL_FRect destino = {x, y, ancho, alto};
     SDL_RenderTexture(m_renderer, textura, nullptr, &destino);
 
-    // Esta textura solo vale para este texto y este frame: se destruye ya
+    SDL_DestroyTexture(textura);
+}
+
+void Interfaz::dibujarTextoAjustado(const std::string& texto, float x, float y, int anchoMaximo,
+                                    SDL_Color color)
+{
+    if(texto.empty() || !m_fuente){
+        return;
+    }
+    SDL_Surface* superficie = TTF_RenderText_Solid_Wrapped(m_fuente, texto.c_str(), 0, color, anchoMaximo);
+    if(!superficie){
+        return;
+    }
+    SDL_Texture* textura = SDL_CreateTextureFromSurface(m_renderer, superficie);
+    SDL_DestroySurface(superficie);
+    if(!textura){
+        return;
+    }
+    float ancho = 0, alto = 0;
+    SDL_GetTextureSize(textura, &ancho, &alto);
+    SDL_FRect destino = {x, y, ancho, alto};
+    SDL_RenderTexture(m_renderer, textura, nullptr, &destino);
     SDL_DestroyTexture(textura);
 }
 
@@ -125,7 +143,6 @@ int Interfaz::anchoTexto(const std::string& texto)
 
 SDL_Texture* Interfaz::cargarTextura(const std::string& ruta)
 {
-    // ¿Ya la tenemos cargada? Entonces se reutiliza (cargar un PNG es lento)
     auto encontrada = m_texturas.find(ruta);
     if(encontrada != m_texturas.end()){
         return encontrada->second;
@@ -135,7 +152,7 @@ SDL_Texture* Interfaz::cargarTextura(const std::string& ruta)
     if(!textura){
         SDL_Log("No se pudo cargar %s: %s", ruta.c_str(), SDL_GetError());
     }
-    m_texturas[ruta] = textura;   // se guarda aunque sea nullptr, para no reintentarlo cada frame
+    m_texturas[ruta] = textura;   // también nullptr, para no reintentarlo
     return textura;
 }
 
@@ -165,57 +182,114 @@ void Interfaz::dibujarRectangulo(float x, float y, float ancho, float alto,
     }
 }
 
-// ============================================================================
-// 2. PANTALLAS: TU PARTE
-//    Versión provisional solo con texto, para que el juego ya se pueda jugar.
-//    Sustitúyela por la tuya: tarjetas, sprites, barras de vida...
-// ============================================================================
+
 
 void Interfaz::dibujarSeleccion(const SeleccionPersonaje& seleccion)
 {
-    dibujarTexto("ELIGE PERSONAJE", 8, 8);
+    
+    std::string titulo="ELIGE PERSONAJE";
+    dibujarTexto(titulo, (kAncho - anchoTexto(titulo)) / 2.0f, 16);
+
 
     const std::vector<Personaje>& opciones = seleccion.getOpciones();
+    float ancho = 56;      // ancho de cada tarjeta
+    float y = 50;          // altura de las tarjetas (igual para todas)
+
     for(int i = 0; i < static_cast<int>(opciones.size()); i++){
-        float y = 32.0f + i * 16.0f;
-        if(i == seleccion.getIndiceMarcado()){
-            dibujarTexto(">", 8, y, {255, 220, 0, 255});
-        }
-        dibujarTexto(opciones[i].getNombre(), 24, y);
+        const Personaje& p = opciones[i];
+        float x = 2.0f + i * (ancho + 4);          // 2, 62, 122, 182
+        bool marcada = (i == seleccion.getIndiceMarcado());
+
+        // Dorado si está marcada, azul si no
+        SDL_Color colorFondo = marcada ? SDL_Color{255, 200, 0, 255}   : SDL_Color{40, 40, 80, 255};
+        SDL_Color colorTexto = marcada ? SDL_Color{0, 0, 0, 255}       : SDL_Color{255, 255, 255, 255};
+     // Rectángulo del nombre
+        dibujarRectangulo(x, y + 50, ancho, -50, colorFondo);
+        // Sprite encima
+        dibujarSprite(p.getNombreSprite(), true, x + (ancho - 32) / 2, y, 0.5f);
+
+   
+
+        // Nombre centrado
+        float anchoNombre = static_cast<float>(anchoTexto(p.getNombre()));
+        dibujarTexto(p.getNombre(), x + (ancho - anchoNombre) / 2, y + 38, colorTexto);
     }
 
-    dibujarTexto("Flechas y Enter", 8, 144, {150, 150, 150, 255});
+    // Ayuda abajo, centrada
+    std::string ayuda = "Flechas y Enter";
+    dibujarTexto(ayuda, (kAncho - anchoTexto(ayuda)) / 2.0f, 140, {150, 150, 150, 255});
+}
+
+void Interfaz::dibujarEstado(const Personaje& personaje, float x, float y)
+{
+    SDL_Color naranja = {255, 160, 60, 255};
+    SDL_Color celeste = {120, 200, 255, 255};
+    SDL_Color morado  = {200, 140, 255, 255};
+
+    // Correa: estado y multiplicador max(1, contador)
+    if(personaje.getTipo() == Tipo::Correa){
+        if(personaje.tieneCorrea()){
+            int multiplicador = std::max(1, personaje.turnosConCorrea());
+            dibujarTexto("Correa x" + std::to_string(multiplicador), x, y, naranja);
+        }else{
+            int multiplicador = std::max(1, personaje.turnosLibre());
+            dibujarTexto("Libre x" + std::to_string(multiplicador), x, y, celeste);
+        }
+        y += 10;
+    }
+
+    if(personaje.estaAturdido()){
+        dibujarTexto("Aturdido", x, y, {200, 200, 200, 255});  
+        y += 10;
+    }
+
+    if(personaje.estaCanalizando()){
+        dibujarTexto("Canaliza", x, y, morado);
+    }
 }
 
 void Interfaz::dibujarCombate(const Combate& combate, int opcionMenu)
 {
     const Personaje& jugador = combate.getJugador();
     const Personaje& rival = combate.getRival();
+    SDL_Color amarillo = {255, 220, 0, 255};
+    SDL_Color gris = {150, 150, 150, 255};
 
-    // Rival arriba, jugador abajo (como en Pokémon)
+    // Rival: arriba a la izquierda, de frente
     dibujarTexto(rival.getNombre() + " " + std::to_string(rival.getPsActuales()) +
-                 "/" + std::to_string(rival.getPsMax()), 8, 8);
-    dibujarTexto(jugador.getNombre() + " " + std::to_string(jugador.getPsActuales()) +
-                 "/" + std::to_string(jugador.getPsMax()), 8, 40);
+                 "/" + std::to_string(rival.getPsMax()), 8, 4);
+    dibujarSprite(rival.getNombreSprite(), true, 8, 14, 0.5f);
+    dibujarEstado(rival, 44, 16);
 
+    // Jugador: a la derecha, de espaldas
+    dibujarTexto(jugador.getNombre() + " " + std::to_string(jugador.getPsActuales()) +
+                 "/" + std::to_string(jugador.getPsMax()), 128, 40);
+    dibujarSprite(jugador.getNombreSprite(), false, 128, 50, 0.5f);
+    dibujarEstado(jugador, 164, 52);
+
+    // Separador y mensaje
+    dibujarRectangulo(0, 86, kAncho, 1, gris);
+    dibujarTextoAjustado(combate.getUltimoMensaje(), 8, 90, kAncho - 16);
+
+    // Resultado, turno del rival o menú
     if(combate.haTerminado()){
         bool ganaJugador = (combate.getGanador().value() == Lado::Jugador);
-        dibujarTexto(ganaJugador ? "HAS GANADO!" : "HAS PERDIDO", 8, 88, {255, 220, 0, 255});
-        dibujarTexto("Esc para salir", 8, 104, {150, 150, 150, 255});
+        dibujarTexto(ganaJugador ? "HAS GANADO!" : "HAS PERDIDO", 8, 120, amarillo);
+        dibujarTexto("Esc para salir", 8, 136, gris);
         return;
     }
 
     if(combate.getTurno() == Lado::Rival){
-        dibujarTexto("Turno del rival...", 8, 88);
+        dibujarTexto("Turno de " + rival.getNombre() + "...", 8, 120, gris);
         return;
     }
 
     // Menú de habilidades del jugador
     const std::vector<Habilidad>& habilidades = jugador.getHabilidades();
     for(int i = 0; i < static_cast<int>(habilidades.size()); i++){
-        float y = 88.0f + i * 12.0f;
+        float y = 114.0f + i * 12.0f;
         if(i == opcionMenu){
-            dibujarTexto(">", 8, y, {255, 220, 0, 255});
+            dibujarTexto(">", 8, y, amarillo);
         }
         dibujarTexto(habilidades[i].getNombre(), 20, y);
     }

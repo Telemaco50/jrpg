@@ -1,12 +1,8 @@
-// Pruebas de ControladorIA (versión al azar)
-//
-// Se usa una semilla fija (12345): así los números "aleatorios" son siempre los mismos
-// y las pruebas dan el mismo resultado en cada ejecución.
-
+// Pruebas de ControladorIA (semilla fija)
 #include <doctest/doctest.h>
 #include "controladorIA.h"
 
-// Personaje con 3 habilidades (los datos de las habilidades dan igual para la IA al azar)
+// Personaje con 3 habilidades
 static Personaje crearConHabilidades()
 {
     return Personaje("Prueba", Tipo::Otaku, 100, {
@@ -38,7 +34,7 @@ TEST_CASE("La IA siempre devuelve un índice válido")
 
     for(int i = 0; i < 100; i++){
         std::optional<int> eleccion = ia.elegirHabilidad(propio, rival);
-        REQUIRE(eleccion.has_value());      // REQUIRE: si falla, para aquí (no seguir con un nullopt)
+        REQUIRE(eleccion.has_value());
         CHECK(eleccion.value() >= 0);
         CHECK(eleccion.value() <= 2);
     }

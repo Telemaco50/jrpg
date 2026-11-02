@@ -1,14 +1,4 @@
-// Pruebas de ControladorPJ (el controlador del jugador)
-//
-// Cómo funciona (ver docs/DISENO.md):
-//   - La Interfaz, cuando el jugador pulsa una opción del menú, llama a recibirEleccion(indice).
-//   - Combate, en cada frame, pregunta elegirHabilidad(propio, rival):
-//       * si el jugador aún no ha elegido → std::nullopt ("todavía no")
-//       * si ya eligió → devuelve ese índice UNA vez y lo olvida (para el siguiente turno)
-//   - Una elección fuera de rango (no existe esa habilidad) se ignora.
-//
-// No usa SDL: solo guarda un número. Por eso se puede probar sin ventana.
-
+// Pruebas de ControladorPJ
 #include <doctest/doctest.h>
 #include "controladorPJ.h"
 

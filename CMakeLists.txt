@@ -4,15 +4,14 @@ project(jrpg LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Para que clang-tidy / IntelliSense sepan cómo se compila cada archivo
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
-# Todo estático: un único .exe, sin DLLs que copiar
+# Enlace estático: un único .exe
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-# --- SDL3: ventana, render, teclado, sonido ---
+# --- SDL3 ---
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON  CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
@@ -22,8 +21,8 @@ FetchContent_Declare(SDL3
   GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(SDL3)
 
-# --- SDL3_image: cargar PNG (sprites, tilesets) ---
-# Usamos el decodificador interno (stb_image): PNG/JPG/BMP sin dependencias externas
+# --- SDL3_image (PNG) ---
+# Decodificador interno (stb_image)
 set(SDLIMAGE_VENDORED     OFF CACHE BOOL "" FORCE)
 set(SDLIMAGE_BACKEND_STB  ON  CACHE BOOL "" FORCE)
 set(SDLIMAGE_AVIF         OFF CACHE BOOL "" FORCE)
@@ -39,10 +38,8 @@ FetchContent_Declare(SDL3_image
   GIT_SHALLOW    TRUE)
 FetchContent_MakeAvailable(SDL3_image)
 
-# --- SDL3_ttf: escribir texto con fuentes .ttf (nombres, menús, mensajes) ---
-# VENDORED: compila FreeType (el lector de fuentes) junto al proyecto, sin instalar nada.
-# Solo descargamos el submódulo de FreeType; HarfBuzz (idiomas complejos) y PlutoSVG
-# (emojis en color) no nos hacen falta.
+# --- SDL3_ttf (texto) ---
+# FreeType incluido; sin HarfBuzz ni PlutoSVG
 set(SDLTTF_VENDORED  ON  CACHE BOOL "" FORCE)
 set(SDLTTF_HARFBUZZ  OFF CACHE BOOL "" FORCE)
 set(SDLTTF_PLUTOSVG  OFF CACHE BOOL "" FORCE)
@@ -54,9 +51,7 @@ FetchContent_Declare(SDL3_ttf
   GIT_SUBMODULES external/freetype)
 FetchContent_MakeAvailable(SDL3_ttf)
 
-# --- Lógica del juego (SIN SDL) ---
-# Todo lo que no dibuja va en esta librería. La usan el juego Y las pruebas.
-# Cada .cpp nuevo de lógica se añade AQUÍ (los .h no hace falta).
+# --- Lógica del juego (sin SDL), compartida con las pruebas ---
 add_library(jrpg_logica STATIC
   src/logger.cpp
   src/tipo.cpp
@@ -70,16 +65,15 @@ add_library(jrpg_logica STATIC
 )
 target_include_directories(jrpg_logica PUBLIC src)
 
-# --- El juego: main + la parte visual (lo que usa SDL) ---
+# --- Juego ---
 add_executable(jrpg
   src/main.cpp
   src/interfaz.cpp
 )
 target_link_libraries(jrpg PRIVATE jrpg_logica SDL3_ttf::SDL3_ttf SDL3_image::SDL3_image SDL3::SDL3)
 
-# --- Pruebas: ejecutable aparte con doctest (no abre ventana ni usa SDL) ---
-# doctest es una librería de tests de un solo .h; solo descargamos el código
-# (SOURCE_SUBDIR inexistente = no ejecutar su CMakeLists, solo usar la cabecera)
+# --- Pruebas (doctest) ---
+# doctest se usa solo como cabecera
 FetchContent_Declare(doctest
   GIT_REPOSITORY https://github.com/doctest/doctest.git
   GIT_TAG        v2.4.12
@@ -88,7 +82,6 @@ FetchContent_Declare(doctest
 FetchContent_MakeAvailable(doctest)
 
 enable_testing()
-# Cada archivo de pruebas nuevo (tests/test_*.cpp) se añade a esta lista
 add_executable(pruebas
   tests/main_pruebas.cpp
   tests/test_tipo.cpp
@@ -104,7 +97,7 @@ target_include_directories(pruebas PRIVATE ${doctest_SOURCE_DIR})
 target_link_libraries(pruebas PRIVATE jrpg_logica)
 add_test(NAME pruebas COMMAND pruebas)
 
-# Avisos del compilador al nivel alto: te ayudan a encontrar bugs pronto
+# Avisos del compilador
 foreach(objetivo jrpg_logica jrpg pruebas)
   if(MSVC)
     target_compile_options(${objetivo} PRIVATE /W4 /utf-8)
@@ -113,7 +106,7 @@ foreach(objetivo jrpg_logica jrpg pruebas)
   endif()
 endforeach()
 
-# Copiar la carpeta assets/ junto al .exe después de cada compilación
+# Copiar assets/ junto al ejecutable
 add_custom_command(TARGET jrpg POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
           ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:jrpg>/assets)

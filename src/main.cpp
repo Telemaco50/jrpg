@@ -1,7 +1,4 @@
-// Punto de entrada del juego: une todas las piezas.
-//   1. Pantalla de selección (SeleccionPersonaje)
-//   2. Combate: el jugador con el menú (ControladorPJ) contra la IA (ControladorIA)
-//   3. Resultado
+// Selección de personaje y combate contra la IA
 
 #include <SDL3/SDL_main.h>
 #include <memory>
@@ -13,7 +10,7 @@
 #include "controladorPJ.h"
 #include "controladorIA.h"
 
-// Las fases del juego (una "máquina de estados" muy sencilla)
+// Pantallas del juego
 enum class Pantalla {
     Seleccion,
     Combate
@@ -26,20 +23,19 @@ int main(int /*argc*/, char* /*argv*/[])
         return 1;
     }
 
-    // Semilla distinta en cada partida (en las pruebas usamos una fija)
     std::random_device azar;
 
     SeleccionPersonaje seleccion(crearPersonajes());
     ControladorPJ controladorJugador;
     ControladorIA controladorRival(azar());
-    std::unique_ptr<Combate> combate;      // vacío hasta que se elija personaje
-    int opcionMenu = 0;                    // habilidad marcada en el menú del combate
-    Uint64 inicioTurnoRival = 0;           // para que el rival "piense" un momento
+    std::unique_ptr<Combate> combate;
+    int opcionMenu = 0;
+    Uint64 inicioTurnoRival = 0;           // pausa del rival
 
     Pantalla pantalla = Pantalla::Seleccion;
 
     while(interfaz.estaAbierta()){
-        // ---------- 1. EVENTOS ----------
+        // Eventos
         std::vector<Tecla> teclas = interfaz.leerTeclas();
         for(Tecla tecla : teclas){
             if(tecla == Tecla::Salir){
@@ -71,18 +67,18 @@ int main(int /*argc*/, char* /*argv*/[])
             }
         }
 
-        // ---------- 2. LÓGICA ----------
+        // Lógica
         if(pantalla == Pantalla::Combate && !combate->haTerminado()){
             if(combate->getTurno() == Lado::Jugador){
                 combate->actualizar();
                 inicioTurnoRival = SDL_GetTicks();
             }
-            else if(SDL_GetTicks() - inicioTurnoRival > 800){   // el rival "piensa" 0,8 s
+            else if(SDL_GetTicks() - inicioTurnoRival > 800){
                 combate->actualizar();
             }
         }
 
-        // ---------- 3. DIBUJAR ----------
+        // Dibujo
         interfaz.empezarFrame();
         if(pantalla == Pantalla::Seleccion){
             interfaz.dibujarSeleccion(seleccion);
@@ -91,7 +87,7 @@ int main(int /*argc*/, char* /*argv*/[])
         }
         interfaz.terminarFrame();
 
-        SDL_Delay(16);   // ~60 frames por segundo
+        SDL_Delay(16);   // ~60 fps
     }
 
     return 0;

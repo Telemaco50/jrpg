@@ -2,6 +2,6 @@
 #include "personaje.h"
 #include <vector>
 
-//Devolver Lista de personajes
+// Devuelve los personajes del juego
 
 std::vector<Personaje> crearPersonajes();

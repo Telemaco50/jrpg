@@ -1,8 +1,4 @@
-// Pruebas de habilidad.h / habilidad.cpp
-//
-// Se usan valores DISTINTOS en cada dato a propósito (por ejemplo mínimo 20 y máximo 30):
-// si el constructor guardara un dato en el miembro equivocado, alguna prueba fallaría.
-
+// Pruebas de Habilidad
 #include <doctest/doctest.h>
 #include "habilidad.h"
 

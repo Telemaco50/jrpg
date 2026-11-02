@@ -17,7 +17,6 @@ Personaje::Personaje(const std::string& nombre, Tipo tipo,
         m_conCorrea=true;
     }
 
-    // m_PM=PM;
 }
 
 
@@ -57,7 +56,7 @@ void Personaje::aturdir(int turno){
 
 }
 
-// Cambio de estado: los dos contadores vuelven a 0 (el 0 marca el turno del cambio)
+// Al cambiar de estado, los contadores vuelven a 0
 void Personaje::ponerCorrea(){
     m_conCorrea=true;
     m_turnosConCorrea=0;
@@ -71,12 +70,12 @@ void Personaje::quitarCorrea(){
 }
 
 void Personaje::pasarTurno(){
-    // 1. Aturdimiento: se gasta un turno (sin bajar de 0)
+    // Aturdimiento
     if(m_turnosAturdido>0){
         m_turnosAturdido--;
     }
 
-    // 2. Correa: solo para el tipo Correa (Griso)
+    // Correa
     if(m_tipo==Tipo::Correa){
         if(m_conCorrea){
             m_turnosConCorrea++;
@@ -92,7 +91,7 @@ void Personaje::pasarTurno(){
     }
 }
 
-// --- Canalización 
+// --- Canalización ---
 bool Personaje::estaCanalizando()const{
     return m_canalizacion>0;
 }

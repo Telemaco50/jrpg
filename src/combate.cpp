@@ -2,9 +2,6 @@
 #include "tipo.h"
 #include <algorithm>
 
-// Los personajes y los controladores DEBEN ir en la lista de inicialización:
-//  - Personaje no tiene constructor sin parámetros: no puede nacer "vacío" y rellenarse después.
-//  - Una referencia (Controlador&) tiene que saber a qué apunta desde que nace.
 Combate::Combate(const Personaje& jugador, const Personaje& rival,
                  Controlador& controladorJugador, Controlador& controladorRival,
                  unsigned int semilla)
@@ -27,63 +24,65 @@ void Combate::cambiarTurno(){
 }
 
 void Combate::actualizar(){
-    // 0. Si ya hay ganador, no hay nada más que hacer
     if(haTerminado()){
         return;
     }
 
-    // 1. ¿Quién actúa en este turno? Se guardan como REFERENCIAS (&) a los de verdad:
-    //    sin el &, serían copias y el daño se le haría a la copia, no al personaje del combate.
-    //    (el "? :" es un if/else en una línea: condición ? si_es_verdad : si_es_falso)
     bool turnoDelJugador = (m_turno==Lado::Jugador);
     Personaje& actor = turnoDelJugador ? m_jugador : m_rival;
     Personaje& otro  = turnoDelJugador ? m_rival   : m_jugador;
     Controlador& controlador = turnoDelJugador ? m_controladorJugador : m_controladorRival;
 
-    // 2. Si está aturdido, pierde el turno (sin preguntar nada a su controlador)
+    // Aturdido: pierde el turno
     if(actor.estaAturdido()){
-        actor.pasarTurno();      // se gasta un turno de aturdimiento
-        cambiarTurno();
-        return;
-    }
-
-    // 2b. Si estaba canalizando y nadie le ha interrumpido, la completa:
-    //     el rival queda aturdido y este turno se gasta en ello
-    if(actor.estaCanalizando()){
-        otro.aturdir(actor.completarCanalizacion());
+        m_ultimoMensaje = actor.getNombre() + " está aturdido y pierde el turno.";
         actor.pasarTurno();
         cambiarTurno();
         return;
     }
 
-    // 3. Preguntar al controlador qué hace. Si aún no ha decidido (jugador en el menú), esperar:
-    //    en el siguiente frame se volverá a preguntar.
+    // Canalización sin interrumpir: se completa y gasta el turno
+    if(actor.estaCanalizando()){
+        int turnos = actor.completarCanalizacion();
+        otro.aturdir(turnos);
+        m_ultimoMensaje = "¡" + actor.getNombre() + " completa el hechizo! " + otro.getNombre() +
+                          " queda aturdido " + std::to_string(turnos) + " turnos.";
+        actor.pasarTurno();
+        cambiarTurno();
+        return;
+    }
+
+    // Sin decisión todavía: se vuelve a preguntar en el siguiente frame
     std::optional<int> decision = controlador.elegirHabilidad(actor, otro);
     if(!decision.has_value()){
         return;
     }
 
-    // 4. Aplicar la habilidad elegida
     const Habilidad& habilidad = actor.getHabilidades()[decision.value()];
     aplicarHabilidad(actor, otro, habilidad);
 
-    // 5. ¿Ha caído el otro? Entonces gana el que acaba de actuar
+    // Si cae el objetivo, gana el actor
     if(!otro.estaVivo()){
         m_ganador = m_turno;
         return;
     }
 
-    // 6. Fin del turno: el actor "pasa turno" (aturdimiento, correa) y le toca al otro
+    // Fin del turno
+    bool teniaCorrea = actor.tieneCorrea();
     actor.pasarTurno();
+    if(actor.getTipo() == Tipo::Correa && actor.tieneCorrea() != teniaCorrea){
+        m_ultimoMensaje += actor.tieneCorrea() ? " ¡A " + actor.getNombre() + " le ponen la correa!"
+                                               : " ¡" + actor.getNombre() + " se quita la correa!";
+    }
     cambiarTurno();
 }
 
 void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habilidad& habilidad){
-    //  Cantidad base: al azar entre el mínimo y el máximo (si son iguales, siempre la misma)
+    // Cantidad base entre mínimo y máximo
     std::uniform_int_distribution<int> dado(habilidad.getCantidadMin(), habilidad.getCantidadMax());
     int cantidad = dado(m_generador);
 
-    // Escalado (Griso): multiplicador = max(1, contador del estado con el que escala)
+    // Escalado de la correa: max(1, contador)
     int multiplicador = 1;
     if(habilidad.getEscalado()==Escalado::turnoLibre){
         multiplicador = std::max(1, actor.turnosLibre());
@@ -93,22 +92,41 @@ void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habi
     }
     cantidad = cantidad * multiplicador;
 
+    m_ultimoMensaje = actor.getNombre() + " usa " + habilidad.getNombre() + ".";
+
     switch(habilidad.getEfecto()){
         case Efecto::Dano:
         {
-            // × efectividad del tipo; static_cast<int> redondea hacia abajo (7.5 → 7)
+            // Efectividad del tipo (redondeo hacia abajo)
             float efectividad = efectividadAtaque(actor.getTipo(), objetivo.getTipo());
+            int psAntes = objetivo.getPsActuales();
             objetivo.recibirDanio(static_cast<int>(cantidad * efectividad));
+            int danio = psAntes - objetivo.getPsActuales();
+
+            if(efectividad > 1.0f){
+                m_ultimoMensaje += " ¡Cómo pega esto!";
+            }else if(efectividad < 1.0f){
+                m_ultimoMensaje += " No hace ni un rasguño...";
+            }
+            m_ultimoMensaje += " -" + std::to_string(danio) + " PS";
             break;
         }
         case Efecto::Cura:
+        {
+            int psAntes = actor.getPsActuales();
             actor.curar(cantidad);
+            m_ultimoMensaje += " +" + std::to_string(actor.getPsActuales() - psAntes) + " PS";
             break;
+        }
         case Efecto::Stun:
             objetivo.aturdir(cantidad);
+            m_ultimoMensaje += " " + objetivo.getNombre() + " queda aturdido " +
+                               std::to_string(cantidad) + (cantidad == 1 ? " turno." : " turnos.");
             break;
         case Efecto::Canalizar:
             actor.empezarCanalizacion(cantidad);
+            m_ultimoMensaje += " Empieza a canalizar...";
             break;
     }
 }
+ 

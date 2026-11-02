@@ -14,7 +14,7 @@ std::vector<Personaje> crearPersonajes()
     lista.push_back(Personaje("Griso",Tipo::Correa,100,{
         Habilidad("Sermón monumental", Efecto::Stun, Escalado::turnoLibre,   1,  1, 0),
         Habilidad("Pásame la birra",   Efecto::Cura, Escalado::turnoLibre,  10, 10, 0),
-        Habilidad("La puta uni",       Efecto::Dano, Escalado::turnoCorrea, 10, 10, 0),
+        Habilidad("La maldita uni",       Efecto::Dano, Escalado::turnoCorrea, 10, 10, 0),
     },"griso"));
 
 
@@ -22,12 +22,12 @@ std::vector<Personaje> crearPersonajes()
     
     lista.push_back(Personaje("Josemi",Tipo::Criptobro,85,{
         Habilidad("Desaparecer", Efecto::Stun, Escalado::noEscala,   1,  1, 0),
-        Habilidad("Niños minan bitcoin",   Efecto::Cura, Escalado::noEscala,  10, 15, 0),
+        Habilidad("Granja de bitcoin",   Efecto::Cura, Escalado::noEscala,  10, 15, 0),
         Habilidad("EL META",       Efecto::Dano, Escalado::noEscala, 30, 50, 0),
     },"josemi"));
 
 
-    lista.push_back(Personaje("Josito", Tipo::Narcolepsia, 100, {
+    lista.push_back(Personaje("Josito", Tipo::Dormilon, 100, {
     Habilidad("Dependencia del bus", Efecto::Stun, Escalado::noEscala, 1,  3, 0),
     Habilidad("La yaya cocina",      Efecto::Cura, Escalado::noEscala, 5, 35, 0),
     Habilidad("EHHH",                Efecto::Dano, Escalado::noEscala, 5, 35, 0),

@@ -1,5 +1,4 @@
-// Pruebas de SeleccionPersonaje (solo la lógica de la pantalla de selección; no dibuja)
-
+// Pruebas de SeleccionPersonaje
 #include <doctest/doctest.h>
 #include "seleccionPersonaje.h"
 #include "catalogo.h"

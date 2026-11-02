@@ -1,13 +1,4 @@
-// Pruebas de Combate (reglas en docs/DISENO.md, sección "Reglas del combate")
-//
-// Truco: los dos bandos se controlan con ControladorPJ, así la prueba decide qué hace
-// cada uno en cada turno (como si fueran dos jugadores pulsando el menú).
-// Las habilidades tienen mínimo == máximo para que las cantidades sean exactas.
-//
-// Tabla de efectividad usada aquí (ataca → defiende):
-//   Otaku → Criptobro x1   Otaku → Narcolepsia x2   Criptobro → Narcolepsia x0.5
-//   Correa → Narcolepsia x1
-
+// Pruebas de Combate
 #include <doctest/doctest.h>
 #include "combate.h"
 #include "controladorPJ.h"
@@ -96,7 +87,7 @@ TEST_CASE("Combate: daño muy eficaz (x2)")
 {
     ControladorPJ cj, cr;
     Combate c(crear("A", Tipo::Otaku, 100, {golpe(10)}),
-              crear("B", Tipo::Narcolepsia, 100, {golpe(10)}), cj, cr, 1);
+              crear("B", Tipo::Dormilon, 100, {golpe(10)}), cj, cr, 1);
 
     cj.recibirEleccion(0);
     c.actualizar();
@@ -108,7 +99,7 @@ TEST_CASE("Combate: daño poco eficaz (x0.5)")
 {
     ControladorPJ cj, cr;
     Combate c(crear("A", Tipo::Criptobro, 100, {golpe(10)}),
-              crear("B", Tipo::Narcolepsia, 100, {golpe(10)}), cj, cr, 1);
+              crear("B", Tipo::Dormilon, 100, {golpe(10)}), cj, cr, 1);
 
     cj.recibirEleccion(0);
     c.actualizar();
@@ -120,7 +111,7 @@ TEST_CASE("Combate: el daño con decimales se redondea hacia abajo")
 {
     ControladorPJ cj, cr;
     Combate c(crear("A", Tipo::Criptobro, 100, {golpe(15)}),     // 15 x 0.5 = 7.5 → 7
-              crear("B", Tipo::Narcolepsia, 100, {golpe(10)}), cj, cr, 1);
+              crear("B", Tipo::Dormilon, 100, {golpe(10)}), cj, cr, 1);
 
     cj.recibirEleccion(0);
     c.actualizar();
@@ -235,9 +226,8 @@ TEST_CASE("Combate: escalado de Griso con la correa (multiplicador = max(1, turn
     ControladorPJ cj, cr;
     Combate c(crear("Griso", Tipo::Correa, 100,
                     {Habilidad("Uni", Efecto::Dano, Escalado::turnoCorrea, 10, 10, 0)}),
-              crear("B", Tipo::Narcolepsia, 1000, {noHacerNada()}), cj, cr, 1);   // Correa → Narcolepsia x1
+              crear("B", Tipo::Dormilon, 1000, {noHacerNada()}), cj, cr, 1);   // Correa → Dormilon x1
 
-    // Cada ronda: Griso ataca con "Uni" y el rival no hace nada
     auto ronda = [&]() {
         cj.recibirEleccion(0);
         c.actualizar();
@@ -256,7 +246,7 @@ TEST_CASE("Combate: escalado de Griso con la correa (multiplicador = max(1, turn
 }
 
 // ============================================================================
-// Canalización ("Turno de magic infinito" de Alvaro)
+// Canalización
 // ============================================================================
 
 static Habilidad canalizar(int turnos)
@@ -324,4 +314,113 @@ TEST_CASE("Combate: aturdir a Alvaro mientras canaliza la rompe y le hace perder
     c.actualizar();             // turno de Alvaro: está aturdido, lo pierde
     CHECK(c.getTurno() == Lado::Rival);
     CHECK_FALSE(c.getRival().estaAturdido());       // la canalización no llegó a lanzarse
+}
+
+// ============================================================================
+// Mensajes
+// ============================================================================
+
+static bool contiene(const std::string& texto, const std::string& trozo)
+{
+    return texto.find(trozo) != std::string::npos;
+}
+
+TEST_CASE("Mensajes: al empezar no hay mensaje")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("A", Tipo::Otaku, 100, {golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {golpe(10)}), cj, cr, 1);
+
+    CHECK(c.getUltimoMensaje().empty());
+}
+
+TEST_CASE("Mensajes: dice quién usa qué habilidad y el daño")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("A", Tipo::Otaku, 100, {golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {golpe(10)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();
+
+    CAPTURE(c.getUltimoMensaje());
+    CHECK(contiene(c.getUltimoMensaje(), "A usa Golpe"));
+    CHECK(contiene(c.getUltimoMensaje(), "-10 PS"));
+}
+
+TEST_CASE("Mensajes: el rival también deja su mensaje (lo que no se veía antes)")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("A", Tipo::Otaku, 100, {golpe(10)}),
+              crear("B", Tipo::Criptobro, 100, {golpe(10)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();
+    cr.recibirEleccion(0);
+    c.actualizar();
+
+    CHECK(contiene(c.getUltimoMensaje(), "B usa Golpe"));
+}
+
+TEST_CASE("Mensajes: muy eficaz y no muy eficaz")
+{
+    ControladorPJ cj, cr;
+    Combate eficaz(crear("A", Tipo::Otaku, 100, {golpe(10)}),
+                   crear("B", Tipo::Dormilon, 100, {golpe(10)}), cj, cr, 1);
+    cj.recibirEleccion(0);
+    eficaz.actualizar();
+    CHECK(contiene(eficaz.getUltimoMensaje(), "Cómo pega esto"));
+
+    Combate flojo(crear("A", Tipo::Criptobro, 100, {golpe(10)}),
+                  crear("B", Tipo::Dormilon, 100, {golpe(10)}), cj, cr, 1);
+    cj.recibirEleccion(0);
+    flojo.actualizar();
+    CHECK(contiene(flojo.getUltimoMensaje(), "No hace ni un rasguño"));
+}
+
+TEST_CASE("Mensajes: curar y aturdir")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("A", Tipo::Otaku, 100, {golpe(30), paralizar(1)}),
+              crear("B", Tipo::Criptobro, 100, {sanar(20)}), cj, cr, 1);
+
+    cj.recibirEleccion(0);
+    c.actualizar();             // A golpea: B 70
+    cr.recibirEleccion(0);
+    c.actualizar();             // B se cura 20
+    CHECK(contiene(c.getUltimoMensaje(), "+20 PS"));
+
+    cj.recibirEleccion(1);
+    c.actualizar();             // A aturde a B
+    CHECK(contiene(c.getUltimoMensaje(), "B queda aturdido 1 turno"));
+
+    c.actualizar();             // B pierde el turno
+    CHECK(contiene(c.getUltimoMensaje(), "B está aturdido"));
+}
+
+TEST_CASE("Mensajes: avisa cuando Griso se quita y se pone la correa")
+{
+    ControladorPJ cj, cr;
+    Combate c(crear("Griso", Tipo::Correa, 100, {golpe(1)}),
+              crear("B", Tipo::Dormilon, 1000, {noHacerNada()}), cj, cr, 1);
+
+    auto ronda = [&]() {
+        cj.recibirEleccion(0);
+        c.actualizar();         // Griso actúa y pasa turno
+    };
+    auto turnoRival = [&]() {
+        cr.recibirEleccion(0);
+        c.actualizar();
+    };
+
+    ronda(); turnoRival();      // con correa 1
+    ronda(); turnoRival();      // con correa 2
+    ronda();                    // con correa 3 → se la quita
+    CHECK(contiene(c.getUltimoMensaje(), "Griso se quita la correa!"));
+    turnoRival();
+
+    ronda(); turnoRival();      // libre 1
+    ronda(); turnoRival();      // libre 2
+    ronda();                    // libre 3 → se la pone
+    CHECK(contiene(c.getUltimoMensaje(), "A Griso le ponen la correa!"));
 }

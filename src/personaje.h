@@ -4,12 +4,8 @@
 #include <string>
 #include <vector>
 
-// Un personaje del juego (Alvaro, Griso, Josemi, Josito).
-//
-// Tiene dos clases de datos:
-//   - Datos fijos: se rellenan en el constructor y no cambian nunca (solo getters).
-//   - Estado del combate: cambia durante la pelea, pero SOLO a través de los
-//     métodos con reglas (recibirDanio, curar, aturdir, pasarTurno...), nunca con setters.
+// Personaje: datos fijos y estado del combate.
+// El estado solo cambia a través de sus métodos (sin setters).
 class Personaje {
 public:
     Personaje(const std::string& nombre, Tipo tipo, int psMax,
@@ -51,23 +47,23 @@ public:
     }
 
 
-    // --- Preguntas sobre el estado (const: solo consultan) ---
-    bool estaVivo() const;          // ¿PS > 0?
-    bool estaAturdido() const;      // ¿le quedan turnos aturdido?
+    // --- Consultas ---
+    bool estaVivo() const;
+    bool estaAturdido() const;
 
-    // --- Acciones con reglas (sin const: cambian el estado) ---
-    void recibirDanio(int cantidad);  // resta PS, pero nunca por debajo de 0
-    void curar(int cantidad);         // suma PS, pero nunca por encima del máximo
-    void aturdir(int turnos);         // suma turnos de aturdimiento
-    void pasarTurno();                // al acabar su turno: resta aturdimiento y avanza los contadores de correa
+    // --- Acciones ---
+    void recibirDanio(int cantidad);  // no baja de 0
+    void curar(int cantidad);         // no supera el máximo
+    void aturdir(int turnos);
+    void pasarTurno();                // resta aturdimiento y avanza la correa
 
 
-    bool estaCanalizando() const;                       // ¿está canalizando?
-    void empezarCanalizacion(int turnosAturdimiento);   // empieza; guarda los turnos que lanzará al completarla
-    int completarCanalizacion();                        // termina la canalización y devuelve esos turnos
-    // Nota: aturdir() a un personaje que está canalizando le ROMPE la canalización
+    bool estaCanalizando() const;
+    void empezarCanalizacion(int turnosAturdimiento);
+    int completarCanalizacion();                        // devuelve los turnos de aturdimiento
+    // aturdir() interrumpe la canalización
 
-    // --- Correa (solo la usa el tipo Correa: Griso) ---
+    // --- Correa (tipo Correa) ---
     bool tieneCorrea() const {
         return m_conCorrea;
     }
@@ -80,8 +76,8 @@ public:
         return m_turnosLibre;
     }
 
-    void ponerCorrea();               // cambia de estado: contadores a 0 (turno de cambio)
-    void quitarCorrea();              // cambia de estado: contadores a 0 (turno de cambio)
+    void ponerCorrea();               // contadores a 0
+    void quitarCorrea();              // contadores a 0
 
 private:
     // Datos fijos
@@ -91,13 +87,13 @@ private:
     std::vector<Habilidad> m_habilidades;
     std::string m_nombreSprite;
 
-    // Estado del combate (con valor inicial para que nunca empiecen con basura)
-    int m_psActuales = 0;          // el constructor lo pone a m_psMax (vida llena)
+    // Estado del combate
+    int m_psActuales = 0;
     int m_turnosAturdido = 0;
-    int m_canalizacion = 0;        // 0 = no canaliza; > 0 = turnos de aturdimiento que lanzará al completarla
-    int m_PM = 0;                  // PM: pendiente de diseñar
+    int m_canalizacion = 0;        // 0 = no canaliza
+    int m_PM = 0;                  // pendiente de diseñar
 
-    // Estado de la correa (Griso). TODO: decidir si empieza con correa o libre
+    // Correa
     bool m_conCorrea = false;
     int m_turnosConCorrea = 0;
     int m_turnosLibre = 0;

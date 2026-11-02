@@ -1,7 +1,8 @@
+// Pruebas de Personaje
 #include <doctest/doctest.h>
 #include "personaje.h"
 
-//Personaje para recibir las pruebas
+// Personaje de prueba
 static Personaje crearPersonajeP(){
 
     return Personaje("Prueba",Tipo::Otaku,100,{},"prueba");
@@ -83,13 +84,13 @@ TEST_CASE("Esta aturdido se gasta")
 }
 
 // ============================================================================
-// Pruebas añadidas: casos límite que las pruebas anteriores no cubrían
+// Casos límite
 // ============================================================================
 
-// Un personaje con un máximo distinto de 100, para pillar números escritos "a fuego"
+// Máximo distinto de 100
 static Personaje crearPersonaje50()
 {
-    return Personaje("Prueba50", Tipo::Narcolepsia, 50, {}, "prueba50");
+    return Personaje("Prueba50", Tipo::Dormilon, 50, {}, "prueba50");
 }
 
 TEST_CASE("La cura respeta el máximo de cada personaje (no un 100 fijo)")
@@ -137,8 +138,7 @@ TEST_CASE("El aturdimiento se acumula")
 }
 
 // ============================================================================
-// Correa de Griso (regla en docs/DISENO.md): empieza con correa y cambia de
-// estado cada 3 turnos. Al cambiar, los contadores vuelven a 0.
+// Correa: empieza con correa y cambia de estado cada 3 turnos
 // ============================================================================
 
 static Personaje crearCorreaP()
@@ -208,7 +208,7 @@ TEST_CASE("Correa: los personajes de otros tipos no usan la correa")
 }
 
 // ============================================================================
-// Canalización ("Turno de magic infinito" de Alvaro, regla en docs/DISENO.md)
+// Canalización
 // ============================================================================
 
 TEST_CASE("Canalización: al empezar no está canalizando")

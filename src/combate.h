@@ -3,6 +3,7 @@
 #include "controlador.h"
 #include <optional>
 #include <random>
+#include <string>
 
 // Los dos bandos del combate
 enum class Lado {
@@ -11,14 +12,10 @@ enum class Lado {
 };
 
 
-//
-// No espera a nadie: la Interfaz llama a actualizar() en cada frame, y en cada llamada
-// el combate avanza lo que pueda (o nada, si el jugador aún está eligiendo en el menú).
+// actualizar() se llama en cada frame y avanza lo que pueda
 class Combate {
 public:
-    // Los personajes se COPIAN: el combate trabaja sobre su propia copia,
-    // así los del catálogo no se modifican y cada partida empieza con la vida llena.
-    // Los controladores NO se copian: el combate solo los usa (pertenecen a quien crea el combate).
+    // Los personajes se copian; los controladores solo se referencian
     Combate(const Personaje& jugador, const Personaje& rival,
             Controlador& controladorJugador, Controlador& controladorRival,
             unsigned int semilla);
@@ -26,12 +23,12 @@ public:
     // Avanza el combate. Se llama en cada frame.
     void actualizar();
 
-    // --- Consultas para la Interfaz y las pruebas ---
+    // --- Consultas ---
     bool haTerminado() const {
         return m_ganador.has_value();
     }
 
-    std::optional<Lado> getGanador() const {   // std::nullopt mientras no haya terminado
+    std::optional<Lado> getGanador() const {   // nullopt mientras no haya terminado
         return m_ganador;
     }
 
@@ -45,6 +42,11 @@ public:
 
     const Personaje& getRival() const {
         return m_rival;
+    }
+
+
+    const std::string& getUltimoMensaje() const {
+        return m_ultimoMensaje;
     }
 
 private:
@@ -61,5 +63,6 @@ private:
 
     Lado m_turno = Lado::Jugador;          // empieza el jugador
     std::optional<Lado> m_ganador;         // vacío mientras se juega
-    std::mt19937 m_generador;              // para las cantidades aleatorias (mín..máx)
+    std::mt19937 m_generador;
+    std::string m_ultimoMensaje;           // descripción de la última acción
 };

@@ -1,12 +1,4 @@
-# Quality gate del JRPG
-#
-# Se ejecuta:
-#   - en cada push a "desarrollo" (aviso temprano mientras trabajas)
-#   - en cada pull request hacia "calidad" o "master" (el gate de verdad)
-#   - a mano, desde la pestaña Actions de GitHub (workflow_dispatch)
-#
-# Repo privado + GitHub Free: no se puede BLOQUEAR el merge, la regla la pones tú:
-# no se fusiona nada en rojo.
+# Quality gate: compilación (MSVC), pruebas y cppcheck
 
 name: Quality gate
 
@@ -18,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 1. ¿Compila? Con MSVC en Windows, como en local
+  # Compilación y pruebas
   compilar:
     name: Compilar (Windows / MSVC)
     runs-on: windows-latest
@@ -38,11 +30,10 @@ jobs:
       - name: Compilar
         run: cmake --build build --config Debug --target jrpg pruebas
 
-      # Si alguna prueba falla, el gate sale en rojo
       - name: Ejecutar pruebas
         run: ctest --test-dir build -C Debug --output-on-failure
 
-  # 2. Análisis estático con cppcheck
+  # Análisis estático
   analisis:
     name: Análisis estático (cppcheck)
     runs-on: ubuntu-latest
@@ -53,7 +44,7 @@ jobs:
       - name: Instalar cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
 
-      # Sugerencias de rendimiento/portabilidad: se muestran, pero NO hacen fallar el gate
+      # Informativo: no hace fallar el gate
       - name: cppcheck - sugerencias (informativo)
         run: >
           cppcheck src
@@ -63,7 +54,7 @@ jobs:
           --suppress=missingIncludeSystem --suppress=missingInclude
           --template="{file}:{line}: [{severity}] {message} ({id})"
 
-      # Errores y avisos (bugs probables): si aparece alguno, el gate falla
+      # Bloqueante: cualquier aviso hace fallar el gate
       - name: cppcheck - errores y avisos (bloqueante)
         run: >
           cppcheck src
