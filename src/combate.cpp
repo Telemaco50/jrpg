@@ -22,6 +22,10 @@ void Combate::cambiarTurno(){
         m_turno=Lado::Jugador;
     }
 }
+// Bando contrario a 'lado'
+static Lado ladoContrario(Lado lado){
+    return (lado == Lado::Jugador) ? Lado::Rival : Lado::Jugador;
+}
 
 void Combate::actualizar(){
     if(haTerminado()){
@@ -47,6 +51,14 @@ void Combate::actualizar(){
         otro.aturdir(turnos);
         m_ultimoMensaje = "¡" + actor.getNombre() + " completa el hechizo! " + otro.getNombre() +
                           " queda aturdido " + std::to_string(turnos) + " turnos.";
+
+        Evento evento;
+        evento.numero = m_ultimoEvento.numero + 1;
+        evento.efecto = Efecto::Stun;
+        evento.objetivo = ladoContrario(m_turno);
+        evento.cantidad = turnos;
+        m_ultimoEvento = evento;
+
         actor.pasarTurno();
         cambiarTurno();
         return;
@@ -94,6 +106,12 @@ void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habi
 
     m_ultimoMensaje = actor.getNombre() + " usa " + habilidad.getNombre() + ".";
 
+    // Evento nuevo en cada acción: empieza con los valores por defecto
+    Evento evento;
+    evento.numero = m_ultimoEvento.numero + 1;
+    evento.efecto = habilidad.getEfecto();
+    evento.objetivo = ladoContrario(m_turno);
+
     switch(habilidad.getEfecto()){
         case Efecto::Dano:
         {
@@ -102,6 +120,9 @@ void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habi
             int psAntes = objetivo.getPsActuales();
             objetivo.recibirDanio(static_cast<int>(cantidad * efectividad));
             int danio = psAntes - objetivo.getPsActuales();
+
+            evento.cantidad = danio;
+            evento.efectividad = efectividad;
 
             if(efectividad > 1.0f){
                 m_ultimoMensaje += " ¡Cómo pega esto!";
@@ -115,18 +136,29 @@ void Combate::aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habi
         {
             int psAntes = actor.getPsActuales();
             actor.curar(cantidad);
-            m_ultimoMensaje += " +" + std::to_string(actor.getPsActuales() - psAntes) + " PS";
+            int curado = actor.getPsActuales() - psAntes;
+
+            evento.objetivo = m_turno;      // la cura es para uno mismo
+            evento.cantidad = curado;
+
+            m_ultimoMensaje += " +" + std::to_string(curado) + " PS";
             break;
         }
         case Efecto::Stun:
             objetivo.aturdir(cantidad);
+            evento.cantidad = cantidad;
+
             m_ultimoMensaje += " " + objetivo.getNombre() + " queda aturdido " +
                                std::to_string(cantidad) + (cantidad == 1 ? " turno." : " turnos.");
             break;
         case Efecto::Canalizar:
             actor.empezarCanalizacion(cantidad);
+            evento.objetivo = m_turno;      // el efecto visual va sobre quien canaliza
+            evento.cantidad = cantidad;
+
             m_ultimoMensaje += " Empieza a canalizar...";
             break;
     }
+
+    m_ultimoEvento = evento;
 }
- 

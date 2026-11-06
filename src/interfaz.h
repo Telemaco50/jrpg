@@ -59,12 +59,25 @@ public:
 
     // assets/sprites/<nombreSprite>_frente.png o _espalda.png (escala 1 = 64x64)
     void dibujarSprite(const std::string& nombreSprite, bool deFrente,
-                       float x, float y, float escala = 1.0f);
+                       float x, float y, float escala = 1.0f,
+                       SDL_Color tinte = {255, 255, 255, 255});
 
     void dibujarRectangulo(float x, float y, float ancho, float alto,
                            SDL_Color color, bool relleno = true);
 
 private:
+    // Efectos visuales de un bando (cada uno tiene los suyos)
+    struct EfectosLado {
+        Uint64 finEmbestida = 0;        // el atacante avanza hacia el rival
+        Uint64 finParpadeo = 0;         // el golpeado aparece y desaparece
+        Uint64 finTinte = 0;
+        SDL_Color tinte = {255, 255, 255, 255};
+    };
+
+    // Lanza los efectos del último evento del combate (si es nuevo)
+    void procesarEvento(const Combate& combate);
+    EfectosLado& efectos(Lado lado) { return m_efectos[static_cast<int>(lado)]; }
+
     // Carga cada imagen una sola vez (caché)
     SDL_Texture* cargarTextura(const std::string& ruta);
 
@@ -75,6 +88,12 @@ private:
     SDL_Window* m_ventana = nullptr;
     SDL_Renderer* m_renderer = nullptr;
     TTF_Font* m_fuente = nullptr;
+
+    int m_ultimoEventoVisto = 0;
+    Uint64 m_finTemblor = 0;            // hasta cuándo tiembla (ms desde que arrancó SDL)
+    float m_intensidadTemblor = 0;
+    float m_offX = 0, m_offY = 0;       // desplazamiento de este frame
+    EfectosLado m_efectos[2];           // [0] jugador, [1] rival
 
     // Caché de texturas por ruta
     std::map<std::string, SDL_Texture*> m_texturas;

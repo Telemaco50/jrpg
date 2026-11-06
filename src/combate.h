@@ -20,6 +20,14 @@ public:
             Controlador& controladorJugador, Controlador& controladorRival,
             unsigned int semilla);
 
+    struct Evento{
+        int numero=0;
+        Efecto efecto=Efecto::Dano;
+        Lado objetivo=Lado::Rival;
+        int cantidad=0;
+        float efectividad=1.0f;
+    };
+
     // Avanza el combate. Se llama en cada frame.
     void actualizar();
 
@@ -49,6 +57,8 @@ public:
         return m_ultimoMensaje;
     }
 
+        const Evento& getUltimoEvento() const
+         { return m_ultimoEvento; }
 private:
     // Aplica la habilidad de 'actor' sobre 'objetivo' (cantidad, escalado, efecto)
     void aplicarHabilidad(Personaje& actor, Personaje& objetivo, const Habilidad& habilidad);
@@ -60,7 +70,7 @@ private:
     Personaje m_rival;
     Controlador& m_controladorJugador;
     Controlador& m_controladorRival;
-
+    Evento m_ultimoEvento; //Efecto
     Lado m_turno = Lado::Jugador;          // empieza el jugador
     std::optional<Lado> m_ganador;         // vacío mientras se juega
     std::mt19937 m_generador;
