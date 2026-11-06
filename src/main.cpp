@@ -31,9 +31,8 @@ int main(int /*argc*/, char* /*argv*/[])
     std::unique_ptr<Combate> combate;
     int opcionMenu = 0;
     Uint64 inicioTurnoRival = 0;           // pausa del rival
-
     Pantalla pantalla = Pantalla::Seleccion;
-
+    
     while(interfaz.estaAbierta()){
         // Eventos
         std::vector<Tecla> teclas = interfaz.leerTeclas();
@@ -77,6 +76,7 @@ int main(int /*argc*/, char* /*argv*/[])
                 combate->actualizar();
             }
         }
+
 
         // Dibujo
         interfaz.empezarFrame();

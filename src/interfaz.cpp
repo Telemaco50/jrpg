@@ -78,8 +78,16 @@ std::vector<Tecla> Interfaz::leerTeclas()
 
 void Interfaz::empezarFrame()
 {
-    SDL_SetRenderDrawColor(m_renderer, 20, 20, 40, 255);
+   SDL_SetRenderDrawColor(m_renderer, 20, 20, 40, 255);
     SDL_RenderClear(m_renderer);
+
+    if(SDL_GetTicks() < m_finTemblor){
+        m_offX = (SDL_rand(3) - 1) * m_intensidadTemblor;
+        m_offY = (SDL_rand(3) - 1) * m_intensidadTemblor;
+    }else{
+        m_offX = 0;
+        m_offY = 0;
+    }
 }
 
 void Interfaz::terminarFrame()
@@ -104,7 +112,7 @@ void Interfaz::dibujarTexto(const std::string& texto, float x, float y, SDL_Colo
 
     float ancho = 0, alto = 0;
     SDL_GetTextureSize(textura, &ancho, &alto);
-    SDL_FRect destino = {x, y, ancho, alto};
+    SDL_FRect destino = {x + m_offX, y + m_offY, ancho, alto};
     SDL_RenderTexture(m_renderer, textura, nullptr, &destino);
 
     SDL_DestroyTexture(textura);
@@ -127,7 +135,7 @@ void Interfaz::dibujarTextoAjustado(const std::string& texto, float x, float y, 
     }
     float ancho = 0, alto = 0;
     SDL_GetTextureSize(textura, &ancho, &alto);
-    SDL_FRect destino = {x, y, ancho, alto};
+    SDL_FRect destino = {x + m_offX, y + m_offY, ancho, alto};
     SDL_RenderTexture(m_renderer, textura, nullptr, &destino);
     SDL_DestroyTexture(textura);
 }
@@ -157,7 +165,7 @@ SDL_Texture* Interfaz::cargarTextura(const std::string& ruta)
 }
 
 void Interfaz::dibujarSprite(const std::string& nombreSprite, bool deFrente,
-                             float x, float y, float escala)
+                             float x, float y, float escala, SDL_Color tinte)
 {
     std::string ruta = "assets/sprites/" + nombreSprite + (deFrente ? "_frente.png" : "_espalda.png");
     SDL_Texture* textura = cargarTextura(ruta);
@@ -166,15 +174,19 @@ void Interfaz::dibujarSprite(const std::string& nombreSprite, bool deFrente,
     }
     float ancho = 0, alto = 0;
     SDL_GetTextureSize(textura, &ancho, &alto);
-    SDL_FRect destino = {x, y, ancho * escala, alto * escala};
+    SDL_FRect destino = {x + m_offX, y + m_offY, ancho * escala, alto * escala};
+
+    // La textura está en la caché: se restaura el color después de usarla
+    SDL_SetTextureColorMod(textura, tinte.r, tinte.g, tinte.b);
     SDL_RenderTexture(m_renderer, textura, nullptr, &destino);
+    SDL_SetTextureColorMod(textura, 255, 255, 255);
 }
 
 void Interfaz::dibujarRectangulo(float x, float y, float ancho, float alto,
                                  SDL_Color color, bool relleno)
 {
     SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a);
-    SDL_FRect rect = {x, y, ancho, alto};
+    SDL_FRect rect = {x + m_offX, y + m_offY, ancho, alto};
     if(relleno){
         SDL_RenderFillRect(m_renderer, &rect);
     }else{
@@ -250,21 +262,43 @@ void Interfaz::dibujarEstado(const Personaje& personaje, float x, float y)
 
 void Interfaz::dibujarCombate(const Combate& combate, int opcionMenu)
 {
+    procesarEvento(combate);
+
     const Personaje& jugador = combate.getJugador();
     const Personaje& rival = combate.getRival();
     SDL_Color amarillo = {255, 220, 0, 255};
     SDL_Color gris = {150, 150, 150, 255};
 
+    Uint64 ahora = SDL_GetTicks();
+
+    // Dibuja el sprite de un bando aplicando sus efectos.
+    // haciaX/haciaY: dirección hacia el otro personaje (para la embestida)
+    auto dibujarConEfectos = [&](Lado lado, const Personaje& p, bool deFrente,
+                                 float x, float y, float haciaX, float haciaY){
+        const EfectosLado& ef = efectos(lado);
+
+        // Parpadeo: oculto en frames alternos de 80 ms
+        if(ahora < ef.finParpadeo && (ahora / 80) % 2 == 0){
+            return;
+        }
+        if(ahora < ef.finEmbestida){
+            x += haciaX * 6;
+            y += haciaY * 6;
+        }
+        SDL_Color tinte = (ahora < ef.finTinte) ? ef.tinte : SDL_Color{255, 255, 255, 255};
+        dibujarSprite(p.getNombreSprite(), deFrente, x, y, 0.5f, tinte);
+    };
+
     // Rival: arriba a la izquierda, de frente
     dibujarTexto(rival.getNombre() + " " + std::to_string(rival.getPsActuales()) +
                  "/" + std::to_string(rival.getPsMax()), 8, 4);
-    dibujarSprite(rival.getNombreSprite(), true, 8, 14, 0.5f);
+    dibujarConEfectos(Lado::Rival, rival, true, 8, 14, 1, 1);           // embiste hacia abajo a la derecha
     dibujarEstado(rival, 44, 16);
 
     // Jugador: a la derecha, de espaldas
     dibujarTexto(jugador.getNombre() + " " + std::to_string(jugador.getPsActuales()) +
                  "/" + std::to_string(jugador.getPsMax()), 128, 40);
-    dibujarSprite(jugador.getNombreSprite(), false, 128, 50, 0.5f);
+    dibujarConEfectos(Lado::Jugador, jugador, false, 128, 50, -1, -1);  // embiste hacia arriba a la izquierda
     dibujarEstado(jugador, 164, 52);
 
     // Separador y mensaje
@@ -292,5 +326,42 @@ void Interfaz::dibujarCombate(const Combate& combate, int opcionMenu)
             dibujarTexto(">", 8, y, amarillo);
         }
         dibujarTexto(habilidades[i].getNombre(), 20, y);
+    }
+}
+
+void Interfaz::procesarEvento(const Combate& combate)
+{
+    const Combate::Evento& e = combate.getUltimoEvento();
+    if(e.numero == m_ultimoEventoVisto){
+        return;                         // nada nuevo
+    }
+    m_ultimoEventoVisto = e.numero;
+
+    Uint64 ahora = SDL_GetTicks();
+    Lado atacante = (e.objetivo == Lado::Jugador) ? Lado::Rival : Lado::Jugador;
+    EfectosLado& objetivo = efectos(e.objetivo);
+
+    switch(e.efecto){
+        case Efecto::Dano:
+            m_intensidadTemblor = (e.efectividad > 1.0f) ? 3.0f : 1.0f;
+            m_finTemblor = ahora + 300;
+            efectos(atacante).finEmbestida = ahora + 150;
+            objetivo.finParpadeo = ahora + 500;
+            objetivo.finTinte = ahora + 500;
+            objetivo.tinte = {255, 90, 90, 255};          // rojo
+            break;
+        case Efecto::Cura:
+            objetivo.finTinte = ahora + 500;
+            objetivo.tinte = {120, 255, 120, 255};        // verde
+            break;
+        case Efecto::Stun:
+            efectos(atacante).finEmbestida = ahora + 150;
+            objetivo.finTinte = ahora + 700;
+            objetivo.tinte = {255, 230, 80, 255};         // amarillo
+            break;
+        case Efecto::Canalizar:
+            objetivo.finTinte = ahora + 700;
+            objetivo.tinte = {150, 150, 255, 255};        // azul
+            break;
     }
 }
